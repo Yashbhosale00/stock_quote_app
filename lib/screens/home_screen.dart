@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:syncfusion_flutter_charts/charts.dart';
+import '../Services/api_service.dart';
 import 'watchlist_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,36 +19,21 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isLoading = false;
   List<_ChartData> historicalData = [];
 
+
+  final ApiService _apiService = ApiService();
+
   Future<void> fetchStockData(String symbol) async {
     setState(() {
       isLoading = true;
     });
 
-    final apiKey = 'XJ5ICWDE32QISTJ5';
-    final quoteUrl =
-        'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=$symbol&apikey=$apiKey';
-
     try {
-      final response = await http.get(Uri.parse(quoteUrl));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['Global Quote'] != null && data['Global Quote'].isNotEmpty) {
-          setState(() {
-            stockData = data['Global Quote'];
-          });
-          await fetchHistoricalData(symbol);
-        } else {
-          setState(() {
-            stockData = null;
-            historicalData.clear();
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Stock not found!')),
-          );
-        }
-      } else {
-        throw Exception('Failed to load stock data');
-      }
+      final data = await _apiService.fetchStockDetails(symbol);
+      setState(() {
+        stockData = data;
+      });
+
+      await fetchHistoricalData(symbol);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
@@ -60,34 +46,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> fetchHistoricalData(String symbol) async {
-    final apiKey = 'XJ5ICWDE32QISTJ5';
-    final historyUrl =
-        'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=$symbol&apikey=$apiKey';
-
     try {
-      final response = await http.get(Uri.parse(historyUrl));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        final timeSeries = data['Time Series (Daily)'];
-
-        if (timeSeries != null) {
-          setState(() {
-            historicalData = timeSeries.entries
-                .take(30)
-                .map((entry) {
-              return _ChartData(
-                DateTime.parse(entry.key),
-                double.parse(entry.value['4. close']),
-              );
-            })
-                .toList()
-                .reversed
-                .toList();
-            print('Historical Data Updated: ${historicalData.length}');
-          });
-        }
-      }
+      final data = await _apiService.fetchHistoricalData(symbol);
+      setState(() {
+        historicalData = data.map((entry) {
+          return _ChartData(
+            DateTime.parse(entry["date"]),
+            entry["close"],
+          );
+        }).toList();
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error loading historical data: $e')),

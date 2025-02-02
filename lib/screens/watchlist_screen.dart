@@ -64,8 +64,6 @@ class WatchlistScreen extends StatelessWidget {
       ),
     );
   }
-
-  // Show confirmation dialog before removing a stock
   void _showConfirmationDialog(BuildContext context, Map<String, dynamic> stock) {
     showDialog(
       context: context,
