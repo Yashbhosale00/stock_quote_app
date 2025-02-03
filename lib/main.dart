@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:stock_quote_app/providers/watchlist_provider.dart';
+import 'package:stock_quote_app/providers/stock_provider.dart';
 import 'package:stock_quote_app/screens/home_screen.dart';
 
 void main() {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => WatchlistProvider()),
+        ChangeNotifierProvider(create: (_) => StockProvider()),
       ],
       child: const StockQuoteApp(),
     ),

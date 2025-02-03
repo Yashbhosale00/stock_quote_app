@@ -1,22 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../model/Stock.dart';
+import '../providers/stock_provider.dart';
 
 class WatchlistScreen extends StatelessWidget {
-  final List<Map<String, dynamic>> watchlist;
-  final Function(Map<String, dynamic>) removeFromWatchlist;
-
-  const WatchlistScreen({
-    Key? key,
-    required this.watchlist,
-    required this.removeFromWatchlist,
-  }) : super(key: key);
-
   @override
   Widget build(BuildContext context) {
+    var stockProvider = Provider.of<StockProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Watchlist'),
       ),
-      body: watchlist.isEmpty
+      body: stockProvider.watchlist.isEmpty
           ? const Center(
         child: Text(
           'No stocks in watchlist!',
@@ -24,12 +20,11 @@ class WatchlistScreen extends StatelessWidget {
         ),
       )
           : ListView.builder(
-        itemCount: watchlist.length,
+        itemCount: stockProvider.watchlist.length,
         itemBuilder: (context, index) {
-          final stock = watchlist[index];
+          final stock = stockProvider.watchlist[index];
           return Card(
-            margin: const EdgeInsets.symmetric(
-                vertical: 8.0, horizontal: 12.0),
+            margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
             elevation: 4.0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12.0),
@@ -37,19 +32,16 @@ class WatchlistScreen extends StatelessWidget {
             child: ListTile(
               contentPadding: const EdgeInsets.all(16.0),
               title: Text(
-                stock['01. symbol'],
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                stock.symbol,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 8.0),
-                  Text('Current Price: \$${stock['05. price']}'),
-                  Text('Change: ${stock['09. change']}'),
-                  Text('Change %: ${stock['10. change percent']}'),
+                  Text('Current Price: \$${stock.price}'),
+                  Text('Change: ${stock.change}'),
+                  Text('Change %: ${stock.changePercent}'),
                 ],
               ),
               trailing: IconButton(
@@ -64,26 +56,27 @@ class WatchlistScreen extends StatelessWidget {
       ),
     );
   }
-  void _showConfirmationDialog(BuildContext context, Map<String, dynamic> stock) {
+
+  void _showConfirmationDialog(BuildContext context, Stock stock) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Remove Stock'),
           content: Text(
-            'Are you sure you want to remove ${stock['01. symbol']} from your watchlist?',
+            'Are you sure you want to remove ${stock.symbol} from your watchlist?',
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
               child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-                removeFromWatchlist(stock); // Call the remove function
+                Provider.of<StockProvider>(context, listen: false).removeStock(stock);
+                Navigator.of(context).pop();
               },
               child: const Text('Remove'),
             ),

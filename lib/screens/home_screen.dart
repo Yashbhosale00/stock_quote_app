@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:provider/provider.dart';
+import 'package:stock_quote_app/screens/watchlist_screen.dart';
 import '../Services/api_service.dart';
-import 'watchlist_screen.dart';
+import '../model/Stock.dart';
+import '../providers/stock_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -14,11 +14,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
-  Map<String, dynamic>? stockData;
-  List<Map<String, dynamic>> watchlist = [];
+  Stock? stockData;
   bool isLoading = false;
-  List<_ChartData> historicalData = [];
-
 
   final ApiService _apiService = ApiService();
 
@@ -30,10 +27,8 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final data = await _apiService.fetchStockDetails(symbol);
       setState(() {
-        stockData = data;
+        stockData = Stock.fromMap(data);
       });
-
-      await fetchHistoricalData(symbol);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
@@ -45,49 +40,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> fetchHistoricalData(String symbol) async {
-    try {
-      final data = await _apiService.fetchHistoricalData(symbol);
-      setState(() {
-        historicalData = data.map((entry) {
-          return _ChartData(
-            DateTime.parse(entry["date"]),
-            entry["close"],
-          );
-        }).toList();
-      });
-    } catch (e) {
+  void addToWatchlist(Stock stock) {
+    setState(() {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading historical data: $e')),
+        const SnackBar(content: Text('Stock added to the watchlist successfully!')),
       );
-    }
-  }
-
-
-  void addToWatchlist(Map<String, dynamic> stock) {
-    setState(() {
-      if (!watchlist.any((element) => element['01. symbol'] == stock['01. symbol'])) {
-        watchlist.add(stock);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Stock added to the watchlist successfully!')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Stock is already in the watchlist!')),
-        );
-      }
     });
   }
 
-
-  void removeFromWatchlist(Map<String, dynamic> stock) {
-    setState(() {
-      watchlist.remove(stock);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
+    var watchlistProvider = Provider.of<StockProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Stock App'),
@@ -115,28 +80,18 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Text('Search'),
             ),
             const SizedBox(height: 10),
-
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => WatchlistScreen(
-                      watchlist: watchlist,
-                      removeFromWatchlist: removeFromWatchlist,
-                    ),
+                    builder: (context) => WatchlistScreen(),
                   ),
                 );
               },
               icon: const Icon(Icons.list),
               label: const Text('Watchlist'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
             ),
-
             const SizedBox(height: 20),
             if (isLoading)
               const Center(child: CircularProgressIndicator())
@@ -154,16 +109,17 @@ class _HomeScreenState extends State<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Symbol: ${stockData!['01. symbol']}',
+                                'Symbol: ${stockData!.symbol}',
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold, fontSize: 16),
                               ),
-                              Text('Current Price: \$${stockData!['05. price']}'),
-                              Text('Change: ${stockData!['09. change']}'),
-                              Text('Change %: ${stockData!['10. change percent']}'),
+                              Text('Current Price: \$${stockData!.price}'),
+                              Text('Change: ${stockData!.change}'),
+                              Text('Change %: ${stockData!.changePercent}'),
                               const SizedBox(height: 10),
                               ElevatedButton(
                                 onPressed: () {
+                                  watchlistProvider.addStock(stockData!);
                                   addToWatchlist(stockData!);
                                 },
                                 child: const Text('Add to Watchlist'),
@@ -173,21 +129,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      SizedBox(
-                        height: 200,
-                        child: historicalData.isEmpty
-                            ? const Center(child: Text('No chart data available'))
-                            : SfCartesianChart(
-                          primaryXAxis: DateTimeAxis(),
-                          series: <ChartSeries>[
-                            LineSeries<_ChartData, DateTime>(
-                              dataSource: historicalData,
-                              xValueMapper: (_ChartData data, _) => data.date,
-                              yValueMapper: (_ChartData data, _) => data.close,
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -199,14 +140,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-
     );
   }
-}
-
-class _ChartData {
-  final DateTime date;
-  final double close;
-
-  _ChartData(this.date, this.close);
 }
